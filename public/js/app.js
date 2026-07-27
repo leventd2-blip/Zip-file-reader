@@ -111,7 +111,7 @@ async function logout() {
   window.location.reload();
 }
 
-// 3. Robust File Input & Drag/Drop
+// 3. File Input & Drag/Drop
 if (zipInput) {
   zipInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -148,6 +148,12 @@ if (searchInput) {
 // 4. ZIP File Inspector Engine
 async function handleZipUpload(file) {
   if (!file) return;
+
+  // Validate extension in JavaScript so iOS Files picker doesn't hide files
+  if (!file.name.toLowerCase().endsWith('.zip')) {
+    alert('Please select a valid .zip file.');
+    return;
+  }
 
   if (typeof JSZip === 'undefined') {
     alert('JSZip library is still loading or blocked. Please refresh the page.');
