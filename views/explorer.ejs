@@ -62,12 +62,12 @@
     <!-- Sidebar / Dropzone -->
     <section class="col-span-12 md:col-span-4 border-r border-neutral-900 flex flex-col bg-black">
       <div class="p-4 border-b border-neutral-900">
-        <label id="dropzone" class="border-2 border-dashed border-neutral-800 hover:border-neutral-600 bg-neutral-950 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition text-center">
+        <div id="dropzone" class="relative border-2 border-dashed border-neutral-800 hover:border-neutral-600 bg-neutral-950 rounded-xl p-4 flex flex-col items-center justify-center transition text-center cursor-pointer" onclick="document.getElementById('zipInput').click()">
           <i data-lucide="upload-cloud" class="w-6 h-6 text-neutral-400 mb-1"></i>
-          <span class="text-xs font-semibold text-white">Drop .ZIP File Here</span>
-          <span class="text-[10px] text-neutral-500">or click to browse local files</span>
-          <input type="file" id="zipInput" accept="*/*" class="hidden">
-        </label>
+          <span class="text-xs font-semibold text-white">Tap or Drop .ZIP File Here</span>
+          <span class="text-[10px] text-neutral-500">Select archive from Files app</span>
+          <input type="file" id="zipInput" accept=".zip,application/zip,application/x-zip-compressed,application/x-zip" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer pointer-events-auto">
+        </div>
       </div>
 
       <div class="p-3 border-b border-neutral-900 bg-neutral-950">

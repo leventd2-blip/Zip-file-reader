@@ -111,7 +111,7 @@ async function logout() {
   window.location.reload();
 }
 
-// 3. File Input & Drag/Drop
+// 3. File Input & Drag/Drop Handlers
 if (zipInput) {
   zipInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -149,9 +149,8 @@ if (searchInput) {
 async function handleZipUpload(file) {
   if (!file) return;
 
-  // Validate extension in JavaScript so iOS Files picker doesn't hide files
-  if (!file.name.toLowerCase().endsWith('.zip')) {
-    alert('Please select a valid .zip file.');
+  if (file.size === 0) {
+    alert("This file appears to be 0 Bytes. If it is stored in iCloud, please tap it in the Files app to download it locally first.");
     return;
   }
 
@@ -180,13 +179,12 @@ async function handleZipUpload(file) {
 
     renderTree(allZipFilesMap);
 
-    // Attempt history save silently
     if (currentUser) {
       saveProjectHistory(file.name, formatBytes(file.size), entryCount).catch(() => {});
     }
   } catch (err) {
     alert('Failed to read ZIP file: ' + err.message);
-    console.error(err);
+    console.error("ZIP Load Error:", err);
   }
 }
 
