@@ -6,11 +6,15 @@ let currentActiveFileName = '';
 let allZipFilesMap = {};
 let currentUser = null;
 
-// Initialize Supabase Client
+// 1. Initialize Supabase Client safely
 let supabase = null;
 if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY && window.supabase) {
-  supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-  initAuth();
+  try {
+    supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    initAuth();
+  } catch (err) {
+    console.warn("Supabase init bypassed:", err);
+  }
 }
 
 const zipInput = document.getElementById('zipInput');
@@ -22,25 +26,29 @@ const activeFilePath = document.getElementById('activeFilePath');
 const activeFileMime = document.getElementById('activeFileMime');
 const downloadBtn = document.getElementById('downloadBtn');
 
-// 1. Auth Handlers
+// 2. Auth Handlers
 async function initAuth() {
   if (!supabase) return;
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    currentUser = user;
-    renderUserUI(user);
-  }
-
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (session?.user) {
-      currentUser = session.user;
-      renderUserUI(session.user);
-    } else {
-      currentUser = null;
-      renderUserUI(null);
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      currentUser = user;
+      renderUserUI(user);
     }
-  });
+
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        currentUser = session.user;
+        renderUserUI(session.user);
+      } else {
+        currentUser = null;
+        renderUserUI(null);
+      }
+    });
+  } catch(e) {
+    console.error("Auth check failed:", e);
+  }
 }
 
 function renderUserUI(user) {
@@ -52,8 +60,8 @@ function renderUserUI(user) {
     if (userProfile) {
       userProfile.innerHTML = `
         <div class="flex items-center space-x-2">
-          <img src="${user.user_metadata.avatar_url || 'https://github.com/identicons/user.png'}" class="w-6 h-6 rounded-full border border-neutral-700">
-          <span class="text-xs font-semibold text-neutral-300 hidden md:inline">${user.user_metadata.full_name || user.email}</span>
+          <img src="${user.user_metadata?.avatar_url || 'https://github.com/identicons/user.png'}" class="w-6 h-6 rounded-full border border-neutral-700">
+          <span class="text-xs font-semibold text-neutral-300 hidden md:inline">${user.user_metadata?.full_name || user.email}</span>
           <button onclick="logout()" class="text-[10px] text-neutral-500 hover:text-white pl-2">Logout</button>
         </div>
       `;
@@ -72,11 +80,29 @@ function renderUserUI(user) {
 }
 
 async function loginWithDiscord() {
-  if (!supabase) return alert('Supabase is not configured yet.');
-  await supabase.auth.signInWithOAuth({
-    provider: 'discord',
-    options: { redirectTo: window.location.origin + '/explorer' }
-  });
+  if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+    alert('Error: SUPABASE_URL or SUPABASE_ANON_KEY missing in Vercel settings!');
+    return;
+  }
+
+  if (!supabase && window.supabase) {
+    supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  }
+
+  if (!supabase) {
+    alert('Error: Supabase JS library failed to load.');
+    return;
+  }
+
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: { redirectTo: window.location.origin + '/explorer' }
+    });
+    if (error) alert('Discord Login Error: ' + error.message);
+  } catch (err) {
+    alert('Unexpected Auth Error: ' + err.message);
+  }
 }
 
 async function logout() {
@@ -85,10 +111,12 @@ async function logout() {
   window.location.reload();
 }
 
-// 2. Drag & Drop / File Input
+// 3. Robust File Input & Drag/Drop
 if (zipInput) {
   zipInput.addEventListener('change', (e) => {
-    if (e.target.files.length) handleZipUpload(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      handleZipUpload(e.target.files[0]);
+    }
   });
 }
 
@@ -105,7 +133,9 @@ if (dropzone) {
   dropzone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropzone.classList.remove('border-neutral-500');
-    if (e.dataTransfer.files.length) handleZipUpload(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleZipUpload(e.dataTransfer.files[0]);
+    }
   });
 }
 
@@ -115,8 +145,15 @@ if (searchInput) {
   });
 }
 
-// 3. ZIP File Inspector Engine
+// 4. ZIP File Inspector Engine
 async function handleZipUpload(file) {
+  if (!file) return;
+
+  if (typeof JSZip === 'undefined') {
+    alert('JSZip library is still loading or blocked. Please refresh the page.');
+    return;
+  }
+
   try {
     const zip = new JSZip();
     loadedZip = await zip.loadAsync(file);
@@ -137,18 +174,19 @@ async function handleZipUpload(file) {
 
     renderTree(allZipFilesMap);
 
-    // Save to Supabase History if logged in
+    // Attempt history save silently
     if (currentUser) {
-      saveProjectHistory(file.name, formatBytes(file.size), entryCount);
+      saveProjectHistory(file.name, formatBytes(file.size), entryCount).catch(() => {});
     }
   } catch (err) {
-    alert('Failed to read ZIP file. Make sure it is a valid ZIP archive.');
+    alert('Failed to read ZIP file: ' + err.message);
     console.error(err);
   }
 }
 
-// 4. Tree Rendering
+// 5. Tree Rendering
 function renderTree(filesMap, filterTerm = '') {
+  if (!fileTree) return;
   fileTree.innerHTML = '';
 
   const entries = Object.keys(filesMap).filter((path) =>
@@ -196,7 +234,7 @@ function renderTree(filesMap, filterTerm = '') {
   lucide.createIcons();
 }
 
-// 5. File Preview Engine
+// 6. File Preview Engine
 async function fetchPreview(filePath, zipEntry) {
   currentActiveEntry = zipEntry;
   currentActiveFileName = filePath.split('/').pop();
@@ -245,7 +283,7 @@ async function fetchPreview(filePath, zipEntry) {
   lucide.createIcons();
 }
 
-// 6. Project History Modal & Saving
+// 7. Helpers & Actions
 async function saveProjectHistory(fileName, fileSize, entryCount) {
   if (!currentUser) return;
   await fetch('/api/history', {
@@ -292,7 +330,6 @@ async function toggleHistoryModal() {
   }
 }
 
-// 7. Download Button
 if (downloadBtn) {
   downloadBtn.addEventListener('click', async () => {
     if (!currentActiveEntry) return;
