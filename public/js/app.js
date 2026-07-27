@@ -4,6 +4,14 @@ let loadedZip = null;
 let currentActiveEntry = null;
 let currentActiveFileName = '';
 let allZipFilesMap = {};
+let currentUser = null;
+
+// Initialize Supabase Client
+let supabase = null;
+if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY && window.supabase) {
+  supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  initAuth();
+}
 
 const zipInput = document.getElementById('zipInput');
 const dropzone = document.getElementById('dropzone');
@@ -14,14 +22,76 @@ const activeFilePath = document.getElementById('activeFilePath');
 const activeFileMime = document.getElementById('activeFileMime');
 const downloadBtn = document.getElementById('downloadBtn');
 
-// Handle File Selection
+// 1. Auth Handlers
+async function initAuth() {
+  if (!supabase) return;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    currentUser = user;
+    renderUserUI(user);
+  }
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (session?.user) {
+      currentUser = session.user;
+      renderUserUI(session.user);
+    } else {
+      currentUser = null;
+      renderUserUI(null);
+    }
+  });
+}
+
+function renderUserUI(user) {
+  const userProfile = document.getElementById('userProfile');
+  const historyBtn = document.getElementById('historyBtn');
+
+  if (user) {
+    if (historyBtn) historyBtn.classList.remove('hidden');
+    if (userProfile) {
+      userProfile.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <img src="${user.user_metadata.avatar_url || 'https://github.com/identicons/user.png'}" class="w-6 h-6 rounded-full border border-neutral-700">
+          <span class="text-xs font-semibold text-neutral-300 hidden md:inline">${user.user_metadata.full_name || user.email}</span>
+          <button onclick="logout()" class="text-[10px] text-neutral-500 hover:text-white pl-2">Logout</button>
+        </div>
+      `;
+    }
+  } else {
+    if (historyBtn) historyBtn.classList.add('hidden');
+    if (userProfile) {
+      userProfile.innerHTML = `
+        <button id="loginDiscordBtn" onclick="loginWithDiscord()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition">
+          <i data-lucide="disc" class="w-3.5 h-3.5"></i> Login
+        </button>
+      `;
+    }
+  }
+  lucide.createIcons();
+}
+
+async function loginWithDiscord() {
+  if (!supabase) return alert('Supabase is not configured yet.');
+  await supabase.auth.signInWithOAuth({
+    provider: 'discord',
+    options: { redirectTo: window.location.origin + '/explorer' }
+  });
+}
+
+async function logout() {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+  window.location.reload();
+}
+
+// 2. Drag & Drop / File Input
 if (zipInput) {
   zipInput.addEventListener('change', (e) => {
     if (e.target.files.length) handleZipUpload(e.target.files[0]);
   });
 }
 
-// Drag & Drop
 if (dropzone) {
   dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -39,19 +109,20 @@ if (dropzone) {
   });
 }
 
-// Search Filter
 if (searchInput) {
   searchInput.addEventListener('input', (e) => {
     renderTree(allZipFilesMap, e.target.value);
   });
 }
 
-// Process ZIP locally in browser
+// 3. ZIP File Inspector Engine
 async function handleZipUpload(file) {
   try {
     const zip = new JSZip();
     loadedZip = await zip.loadAsync(file);
     allZipFilesMap = loadedZip.files;
+
+    const entryCount = Object.keys(allZipFilesMap).length;
 
     const fileMeta = document.getElementById('fileMeta');
     if (fileMeta) fileMeta.classList.remove('hidden');
@@ -62,16 +133,21 @@ async function handleZipUpload(file) {
 
     if (metaName) metaName.textContent = file.name;
     if (metaSize) metaSize.textContent = formatBytes(file.size);
-    if (metaCount) metaCount.textContent = Object.keys(allZipFilesMap).length;
+    if (metaCount) metaCount.textContent = entryCount;
 
     renderTree(allZipFilesMap);
+
+    // Save to Supabase History if logged in
+    if (currentUser) {
+      saveProjectHistory(file.name, formatBytes(file.size), entryCount);
+    }
   } catch (err) {
     alert('Failed to read ZIP file. Make sure it is a valid ZIP archive.');
     console.error(err);
   }
 }
 
-// Render File Tree
+// 4. Tree Rendering
 function renderTree(filesMap, filterTerm = '') {
   fileTree.innerHTML = '';
 
@@ -120,7 +196,7 @@ function renderTree(filesMap, filterTerm = '') {
   lucide.createIcons();
 }
 
-// Preview File Contents
+// 5. File Preview Engine
 async function fetchPreview(filePath, zipEntry) {
   currentActiveEntry = zipEntry;
   currentActiveFileName = filePath.split('/').pop();
@@ -147,7 +223,6 @@ async function fetchPreview(filePath, zipEntry) {
       const textContent = await zipEntry.async('string');
       if (activeFileMime) activeFileMime.textContent = `text/${ext || 'plain'}`;
 
-      // Check if file is completely empty (e.g., __init__.py)
       if (!textContent || textContent.trim() === '') {
         previewArea.innerHTML = `
           <div class="text-center text-neutral-500 font-mono text-xs flex flex-col items-center justify-center h-full">
@@ -170,7 +245,54 @@ async function fetchPreview(filePath, zipEntry) {
   lucide.createIcons();
 }
 
-// Download Button
+// 6. Project History Modal & Saving
+async function saveProjectHistory(fileName, fileSize, entryCount) {
+  if (!currentUser) return;
+  await fetch('/api/history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: currentUser.id,
+      fileName,
+      fileSize,
+      entryCount
+    })
+  });
+}
+
+async function toggleHistoryModal() {
+  const modal = document.getElementById('historyModal');
+  if (!modal) return;
+
+  modal.classList.toggle('hidden');
+
+  if (!modal.classList.contains('hidden') && currentUser) {
+    const list = document.getElementById('historyList');
+    list.innerHTML = `<p class="text-center text-neutral-500 py-8">Loading history...</p>`;
+
+    const res = await fetch(`/api/history/${currentUser.id}`);
+    const data = await res.json();
+
+    if (data.history && data.history.length > 0) {
+      list.innerHTML = data.history.map(item => `
+        <div class="p-3 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center justify-between">
+          <div>
+            <p class="font-bold text-white text-xs">${escapeHtml(item.file_name)}</p>
+            <p class="text-[10px] text-neutral-500">${new Date(item.created_at).toLocaleString()}</p>
+          </div>
+          <div class="text-right text-[10px] text-neutral-400">
+            <p>${item.file_size}</p>
+            <p>${item.entry_count} files</p>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      list.innerHTML = `<p class="text-center text-neutral-500 py-8">No history recorded yet.</p>`;
+    }
+  }
+}
+
+// 7. Download Button
 if (downloadBtn) {
   downloadBtn.addEventListener('click', async () => {
     if (!currentActiveEntry) return;
@@ -187,6 +309,7 @@ if (downloadBtn) {
 }
 
 function formatBytes(bytes) {
+  if (typeof bytes === 'string') return bytes;
   if (bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
