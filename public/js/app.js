@@ -4,18 +4,6 @@ let loadedZip = null;
 let currentActiveEntry = null;
 let currentActiveFileName = '';
 let allZipFilesMap = {};
-let currentUser = null;
-
-// 1. Initialize Supabase Client safely
-let supabase = null;
-if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY && window.supabase) {
-  try {
-    supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-    initAuth();
-  } catch (err) {
-    console.warn("Supabase init bypassed:", err);
-  }
-}
 
 const zipInput = document.getElementById('zipInput');
 const dropzone = document.getElementById('dropzone');
@@ -26,92 +14,7 @@ const activeFilePath = document.getElementById('activeFilePath');
 const activeFileMime = document.getElementById('activeFileMime');
 const downloadBtn = document.getElementById('downloadBtn');
 
-// 2. Auth Handlers
-async function initAuth() {
-  if (!supabase) return;
-
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      currentUser = user;
-      renderUserUI(user);
-    }
-
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        currentUser = session.user;
-        renderUserUI(session.user);
-      } else {
-        currentUser = null;
-        renderUserUI(null);
-      }
-    });
-  } catch(e) {
-    console.error("Auth check failed:", e);
-  }
-}
-
-function renderUserUI(user) {
-  const userProfile = document.getElementById('userProfile');
-  const historyBtn = document.getElementById('historyBtn');
-
-  if (user) {
-    if (historyBtn) historyBtn.classList.remove('hidden');
-    if (userProfile) {
-      userProfile.innerHTML = `
-        <div class="flex items-center space-x-2">
-          <img src="${user.user_metadata?.avatar_url || 'https://github.com/identicons/user.png'}" class="w-6 h-6 rounded-full border border-neutral-700">
-          <span class="text-xs font-semibold text-neutral-300 hidden md:inline">${user.user_metadata?.full_name || user.email}</span>
-          <button onclick="logout()" class="text-[10px] text-neutral-500 hover:text-white pl-2">Logout</button>
-        </div>
-      `;
-    }
-  } else {
-    if (historyBtn) historyBtn.classList.add('hidden');
-    if (userProfile) {
-      userProfile.innerHTML = `
-        <button id="loginDiscordBtn" onclick="loginWithDiscord()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition">
-          <i data-lucide="disc" class="w-3.5 h-3.5"></i> Login
-        </button>
-      `;
-    }
-  }
-  lucide.createIcons();
-}
-
-async function loginWithDiscord() {
-  if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
-    alert('Error: SUPABASE_URL or SUPABASE_ANON_KEY missing in Vercel settings!');
-    return;
-  }
-
-  if (!supabase && window.supabase) {
-    supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-  }
-
-  if (!supabase) {
-    alert('Error: Supabase JS library failed to load.');
-    return;
-  }
-
-  try {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'discord',
-      options: { redirectTo: window.location.origin + '/explorer' }
-    });
-    if (error) alert('Discord Login Error: ' + error.message);
-  } catch (err) {
-    alert('Unexpected Auth Error: ' + err.message);
-  }
-}
-
-async function logout() {
-  if (!supabase) return;
-  await supabase.auth.signOut();
-  window.location.reload();
-}
-
-// 3. File Input & Drag/Drop Handlers
+// 1. File Input & Drag/Drop Handlers
 if (zipInput) {
   zipInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -145,7 +48,7 @@ if (searchInput) {
   });
 }
 
-// 4. ZIP File Inspector Engine
+// 2. ZIP File Inspector Engine
 async function handleZipUpload(file) {
   if (!file) return;
 
@@ -155,7 +58,7 @@ async function handleZipUpload(file) {
   }
 
   if (typeof JSZip === 'undefined') {
-    alert('JSZip library is still loading or blocked. Please refresh the page.');
+    alert('JSZip library is still loading. Please refresh the page.');
     return;
   }
 
@@ -178,17 +81,13 @@ async function handleZipUpload(file) {
     if (metaCount) metaCount.textContent = entryCount;
 
     renderTree(allZipFilesMap);
-
-    if (currentUser) {
-      saveProjectHistory(file.name, formatBytes(file.size), entryCount).catch(() => {});
-    }
   } catch (err) {
     alert('Failed to read ZIP file: ' + err.message);
     console.error("ZIP Load Error:", err);
   }
 }
 
-// 5. Tree Rendering
+// 3. Tree Rendering
 function renderTree(filesMap, filterTerm = '') {
   if (!fileTree) return;
   fileTree.innerHTML = '';
@@ -238,7 +137,7 @@ function renderTree(filesMap, filterTerm = '') {
   lucide.createIcons();
 }
 
-// 6. File Preview Engine
+// 4. File Preview Engine
 async function fetchPreview(filePath, zipEntry) {
   currentActiveEntry = zipEntry;
   currentActiveFileName = filePath.split('/').pop();
@@ -287,53 +186,7 @@ async function fetchPreview(filePath, zipEntry) {
   lucide.createIcons();
 }
 
-// 7. Helpers & Actions
-async function saveProjectHistory(fileName, fileSize, entryCount) {
-  if (!currentUser) return;
-  await fetch('/api/history', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userId: currentUser.id,
-      fileName,
-      fileSize,
-      entryCount
-    })
-  });
-}
-
-async function toggleHistoryModal() {
-  const modal = document.getElementById('historyModal');
-  if (!modal) return;
-
-  modal.classList.toggle('hidden');
-
-  if (!modal.classList.contains('hidden') && currentUser) {
-    const list = document.getElementById('historyList');
-    list.innerHTML = `<p class="text-center text-neutral-500 py-8">Loading history...</p>`;
-
-    const res = await fetch(`/api/history/${currentUser.id}`);
-    const data = await res.json();
-
-    if (data.history && data.history.length > 0) {
-      list.innerHTML = data.history.map(item => `
-        <div class="p-3 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center justify-between">
-          <div>
-            <p class="font-bold text-white text-xs">${escapeHtml(item.file_name)}</p>
-            <p class="text-[10px] text-neutral-500">${new Date(item.created_at).toLocaleString()}</p>
-          </div>
-          <div class="text-right text-[10px] text-neutral-400">
-            <p>${item.file_size}</p>
-            <p>${item.entry_count} files</p>
-          </div>
-        </div>
-      `).join('');
-    } else {
-      list.innerHTML = `<p class="text-center text-neutral-500 py-8">No history recorded yet.</p>`;
-    }
-  }
-}
-
+// 5. Helpers & Extract
 if (downloadBtn) {
   downloadBtn.addEventListener('click', async () => {
     if (!currentActiveEntry) return;

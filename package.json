@@ -1,17 +1,13 @@
 {
   "name": "zip-file-reader",
   "version": "1.0.0",
-  "description": "ZipVault Workspace - Online ZIP File Inspector",
+  "description": "ZipVault Workspace - Archive Explorer Engine",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "nodemon server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
