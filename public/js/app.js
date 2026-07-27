@@ -146,8 +146,18 @@ async function fetchPreview(filePath, zipEntry) {
     } else {
       const textContent = await zipEntry.async('string');
       if (activeFileMime) activeFileMime.textContent = `text/${ext || 'plain'}`;
-      previewArea.innerHTML = `
-        <pre class="w-full h-full bg-neutral-950 p-4 rounded-xl border border-neutral-900 text-emerald-400 font-mono text-xs overflow-auto"><code>${escapeHtml(textContent)}</code></pre>`;
+
+      // Check if file is completely empty (e.g., __init__.py)
+      if (!textContent || textContent.trim() === '') {
+        previewArea.innerHTML = `
+          <div class="text-center text-neutral-500 font-mono text-xs flex flex-col items-center justify-center h-full">
+            <i data-lucide="file-x" class="w-8 h-8 mb-2 opacity-40"></i>
+            <span>This file is empty (0 Bytes)</span>
+          </div>`;
+      } else {
+        previewArea.innerHTML = `
+          <pre class="w-full h-full bg-neutral-950 p-4 rounded-xl border border-neutral-900 text-emerald-400 font-mono text-xs overflow-auto leading-relaxed"><code>${escapeHtml(textContent)}</code></pre>`;
+      }
     }
   } catch (err) {
     if (activeFileMime) activeFileMime.textContent = 'binary';
@@ -156,6 +166,8 @@ async function fetchPreview(filePath, zipEntry) {
         <p class="text-xs text-neutral-500">Binary content cannot be previewed directly.</p>
       </div>`;
   }
+
+  lucide.createIcons();
 }
 
 // Download Button
@@ -163,13 +175,14 @@ if (downloadBtn) {
   downloadBtn.addEventListener('click', async () => {
     if (!currentActiveEntry) return;
     const blob = await currentActiveEntry.async('blob');
-    const url = URL.URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = currentActiveFileName || 'file';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   });
 }
 
@@ -181,6 +194,12 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-function escapeHtml(text) {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  }[m]));
 }
