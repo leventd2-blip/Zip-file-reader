@@ -7,26 +7,19 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Subdomain Router Middleware
-app.use((req, res, next) => {
-  const host = req.headers.host || '';
+// 1. Landing Page / Dashboard
+app.get('/', (req, res) => {
+  res.render('landing');
+});
 
-  // If request comes from app.zipvault.ddns.net or /app path
-  if (host.startsWith('app.') || req.path === '/app') {
-    return res.render('explorer');
-  }
-
-  // Fallback to landing page for root domain zipvault.ddns.net
-  if (req.path === '/') {
-    return res.render('landing');
-  }
-
-  next();
+// 2. ZIP Explorer Workspace
+app.get('/explorer', (req, res) => {
+  res.render('explorer');
 });
 
 module.exports = app;
 
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
