@@ -9,10 +9,12 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize Supabase Client
+// Initialize Supabase Client safely
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = (supabaseUrl && supabaseKey) 
+  ? createClient(supabaseUrl, supabaseKey) 
+  : null;
 
 // 1. Landing Page / Dashboard
 app.get('/', (req, res) => {
@@ -29,6 +31,8 @@ app.get('/explorer', (req, res) => {
 
 // 3. API Route to save uploaded project history
 app.post('/api/history', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
   const { userId, fileName, fileSize, entryCount } = req.body;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -42,6 +46,8 @@ app.post('/api/history', async (req, res) => {
 
 // 4. API Route to fetch project history for a user
 app.get('/api/history/:userId', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
   const { userId } = req.params;
   const { data, error } = await supabase
     .from('project_history')
