@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZipVault — High Performance ZIP Inspector</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+</head>
+<body class="bg-black text-white min-h-screen flex flex-col justify-between antialiased selection:bg-neutral-800 selection:text-white">
+
+  <!-- Navigation -->
+  <header class="border-b border-neutral-900 bg-black/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-white">
+          <i data-lucide="archive" class="w-5 h-5"></i>
+        </div>
+        <span class="font-bold text-lg tracking-tight">ZipVault</span>
+      </div>
+
+      <a href="https://app.zipvault.ddns.net" class="bg-white hover:bg-neutral-200 text-black font-semibold text-xs px-4 py-2 rounded-xl transition-all shadow-sm">
+        Launch App
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="py-20 px-6 text-center max-w-4xl mx-auto flex flex-col items-center">
+    <div class="inline-flex items-center gap-2 bg-[#2a1708] border border-[#f97316]/30 text-[#f97316] px-4 py-1.5 rounded-full text-xs font-medium mb-8">
+      <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+      <span>This project is high performance & fully client-side.</span>
+    </div>
+
+    <h1 class="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
+      Free ZIP File Explorer
+    </h1>
+
+    <p class="text-neutral-400 text-base md:text-lg max-w-2xl font-normal leading-relaxed mb-8">
+      ZipVault inspects your archive files instantly inside your browser, showing every folder, file, and code preview—without uploading your data to any server.
+    </p>
+
+    <a href="https://app.zipvault.ddns.net" class="bg-white hover:bg-neutral-200 text-black font-semibold text-sm px-6 py-3 rounded-xl inline-flex items-center gap-2 transition-all shadow-lg">
+      <i data-lucide="arrow-up-right" class="w-4 h-4"></i> Open Inspector Workspace
+    </a>
+  </section>
+
+  <!-- Feature Grid -->
+  <section class="py-12 px-6 max-w-6xl mx-auto w-full">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-neutral-950 border border-neutral-900 rounded-2xl p-6">
+        <span class="inline-block bg-neutral-900 text-neutral-400 border border-neutral-800 px-3 py-1 rounded-full text-[11px] font-medium mb-6">01 / Free</span>
+        <h3 class="text-xl font-bold text-white mb-3">Free, No Catches</h3>
+        <p class="text-neutral-400 text-sm leading-relaxed">Inspect archives of any size for free without paywalls or dynamic upload limits.</p>
+      </div>
+
+      <div class="bg-neutral-950 border border-neutral-900 rounded-2xl p-6">
+        <span class="inline-block bg-neutral-900 text-neutral-400 border border-neutral-800 px-3 py-1 rounded-full text-[11px] font-medium mb-6">02 / Privacy</span>
+        <h3 class="text-xl font-bold text-white mb-3">100% Local & Private</h3>
+        <p class="text-neutral-400 text-sm leading-relaxed">Your files never touch a server. Inspection happens completely inside browser memory.</p>
+      </div>
+
+      <div class="bg-neutral-950 border border-neutral-900 rounded-2xl p-6">
+        <span class="inline-block bg-neutral-900 text-neutral-400 border border-neutral-800 px-3 py-1 rounded-full text-[11px] font-medium mb-6">03 / Code Engine</span>
+        <h3 class="text-xl font-bold text-white mb-3">Instant Previews</h3>
+        <p class="text-neutral-400 text-sm leading-relaxed">View python scripts, code, text, and images directly in the browser viewer.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="border-t border-neutral-900 py-6 text-center text-xs text-neutral-600">
+    <p>© 2026 ZipVault — Built for fast, client-side ZIP inspection.</p>
+  </footer>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

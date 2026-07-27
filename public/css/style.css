@@ -1,0 +1,37 @@
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+
+/* Tree Nodes */
+.tree-node {
+  cursor: pointer;
+  user-select: none;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.tree-node:hover {
+  background-color: #171717;
+  color: #ffffff;
+}
+
+.tree-node.active {
+  background-color: #262626;
+  color: #ffffff;
+  font-weight: 500;
+}
